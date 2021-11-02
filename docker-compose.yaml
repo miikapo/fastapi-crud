@@ -1,0 +1,55 @@
+version: "3"
+
+services:
+  postgres: &postgres
+    image: postgres:latest
+    container_name: fastapi-crud-postgres
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=db
+    restart: always
+
+  postgres-test:
+    <<: *postgres
+    container_name: fastapi-crud-postgres-test
+    profiles: ["test", "test-watch"]
+
+  app:
+    container_name: fastapi-crud-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: bash -c "alembic -c tests/app/migrations/alembic.ini upgrade head && uvicorn --host 0.0.0.0 --port 8000 --reload tests.app.app:app"
+    tty: true
+    user: "$UID:$GID"
+    environment:
+      - ENV=development
+    volumes:
+      - ".:/app"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+
+  test: &test
+    container_name: fastapi-crud-test
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: bash -c "alembic -c tests/app/migrations/alembic.ini upgrade head && python -m pytest -p no:cacheprovider"
+    profiles: ["test"]
+    tty: true
+    user: "$UID:$GID"
+    environment:
+      - ENV=testing
+    volumes:
+      - ".:/app"
+    depends_on:
+      - postgres-test
+
+  test-watch:
+    <<: *test
+    container_name: fastapi-crud-test-watch
+    command: bash -c "alembic -c tests/app/migrations/alembic.ini upgrade head && ptw . -x --lf --nf"
+    profiles: ["test-watch"]

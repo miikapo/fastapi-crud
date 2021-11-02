@@ -1,2 +1,2 @@
 # fastapi-crud
-CRUD Endpoint generation for FastAPI
+Automatic CRUD route generation from SQLAlchemy models for FastAPI
